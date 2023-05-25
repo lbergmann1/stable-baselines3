@@ -45,6 +45,46 @@ def set_random_seed(seed: int, using_cuda: bool = False) -> None:
         th.backends.cudnn.benchmark = False
 
 
+def get_rng_states() -> Dict[str, Union[Dict, Tuple, th.Tensor]]:
+    """
+    Get current states of the different pseudorandom number generators
+    (python, numpy, torch).
+
+    :return: The internal states of the pseudorandom number generators.
+    """
+    # state python RNG
+    rng_states = {"python": random.getstate()}
+    # state numpy RNG
+    rng_states.update({"numpy": np.random.get_state()})
+    # state torch RNG
+    rng_states.update({"torch": th.get_rng_state()})
+
+    return rng_states
+
+
+def set_rng_states(rng_states: Dict[str, Union[Dict, Tuple, th.Tensor]], using_cuda: bool = False) -> None:
+    """
+    Set the internal state of the different pseudorandom number generators
+    (python, numpy, torch).
+
+    :param rng_states: The internal states of all pseudorandom number generators
+                       returned by get_rng_states()
+    :param using_cuda: If True, ensures that CUDA selects the same deterministic algorithm
+                       (see https://pytorch.org/docs/stable/notes/randomness.html#cuda-convolution-determinism)
+    """
+    # state python RNG
+    random.setstate(rng_states["python"])
+    # state numpy RNG
+    np.random.set_state(rng_states["numpy"])
+    # state torch RNG
+    th.set_rng_state(rng_states["torch"])
+
+    if using_cuda:
+        # Deterministic operations for CuDNN, it may impact performances
+        th.backends.cudnn.deterministic = True
+        th.backends.cudnn.benchmark = False
+
+
 # From stable baselines
 def explained_variance(y_pred: np.ndarray, y_true: np.ndarray) -> np.ndarray:
     """

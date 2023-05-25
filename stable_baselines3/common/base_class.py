@@ -26,9 +26,11 @@ from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, Schedul
 from stable_baselines3.common.utils import (
     check_for_correct_spaces,
     get_device,
+    get_rng_states,
     get_schedule_fn,
     get_system_info,
     set_random_seed,
+    set_rng_states,
     update_learning_rate,
 )
 from stable_baselines3.common.vec_env import (
@@ -569,6 +571,33 @@ class BaseAlgorithm(ABC):
         if self.env is not None:
             self.env.seed(seed)
 
+    def get_rng_states(self) -> Dict[str, Union[Dict, Tuple, th.Tensor]]:
+        """
+        Get the current state of all pseudo-random number generators
+        (python, numpy, torch, action_space)
+
+        :return: The internal states of all pseudorandom number generators
+        """
+        # states python, numpy, torch RNG
+        rng_states = get_rng_states()
+        # state action space RNG
+        rng_states.update({"action_space": self.action_space.np_random.__getstate__()})
+
+        return rng_states
+
+    def set_rng_states(self, rng_states: Dict[str, Union[Dict, Tuple, th.Tensor]]) -> None:
+        """
+        Set the internal state of the different pseudorandom number generators
+        (python, numpy, torch, action_space).
+
+        :param rng_states: The internal states of all pseudorandom number generators
+                        returned by get_rng_states()
+        """
+        # states python, numpy, torch RNG
+        set_rng_states(rng_states, using_cuda=self.device.type == th.device("cuda").type)
+        # state action space RNG
+        self.action_space.np_random.__setstate__(rng_states["action_space"])
+
     def set_parameters(
         self,
         load_path_or_dict: Union[str, TensorDict],
@@ -676,7 +705,7 @@ class BaseAlgorithm(ABC):
             print("== CURRENT SYSTEM INFO ==")
             get_system_info()
 
-        data, params, pytorch_variables = load_from_zip_file(
+        data, params, pytorch_variables, rng_states = load_from_zip_file(
             path,
             device=device,
             custom_objects=custom_objects,
@@ -777,6 +806,11 @@ class BaseAlgorithm(ABC):
         # see issue #44
         if model.use_sde:
             model.policy.reset_noise()  # type: ignore[operator]  # pytype: disable=attribute-error
+
+        # set internal pseudorandom number generator states
+        if rng_states is not None:
+            model.set_rng_states(rng_states)
+
         return model
 
     def get_parameters(self) -> Dict[str, Dict]:
@@ -842,4 +876,7 @@ class BaseAlgorithm(ABC):
         # Build dict of state_dicts
         params_to_save = self.get_parameters()
 
-        save_to_zip_file(path, data=data, params=params_to_save, pytorch_variables=pytorch_variables)
+        # Build dict of RNG states
+        rng_states = self.get_rng_states()
+
+        save_to_zip_file(path, data=data, params=params_to_save, pytorch_variables=pytorch_variables, rng_states=rng_states)

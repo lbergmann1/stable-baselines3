@@ -291,6 +291,7 @@ def save_to_zip_file(
     data: Optional[Dict[str, Any]] = None,
     params: Optional[Dict[str, Any]] = None,
     pytorch_variables: Optional[Dict[str, Any]] = None,
+    rng_states: Optional[Dict[str, Union[Dict, Tuple, th.Tensor]]] = None,
     verbose: int = 0,
 ) -> None:
     """
@@ -302,6 +303,7 @@ def save_to_zip_file(
     :param params: Model parameters being stored expected to contain an entry for every
                    state_dict with its name and the state_dict.
     :param pytorch_variables: Other PyTorch variables expected to contain name and value of the variable.
+    :param rng_states: Internal states of all pseudorandom number generators
     :param verbose: Verbosity level: 0 for no output, 1 for info messages, 2 for debug messages
     """
     save_path = open_path(save_path, "w", verbose=0, suffix="zip")
@@ -322,6 +324,9 @@ def save_to_zip_file(
             for file_name, dict_ in params.items():
                 with archive.open(file_name + ".pth", mode="w", force_zip64=True) as param_file:
                     th.save(dict_, param_file)
+        if rng_states is not None:
+            with archive.open("rng_states.pkl", mode="w", force_zip64=True) as rng_states_file:
+                pickle.dump(rng_states, rng_states_file)
         # Save metadata: library version when file was saved
         archive.writestr("_stable_baselines3_version", sb3.__version__)
         # Save system info about the current python env
@@ -367,7 +372,7 @@ def load_from_zip_file(
     device: Union[th.device, str] = "auto",
     verbose: int = 0,
     print_system_info: bool = False,
-) -> Tuple[Optional[Dict[str, Any]], TensorDict, Optional[TensorDict]]:
+) -> Tuple[Optional[Dict[str, Any]], TensorDict, Optional[TensorDict], Optional[Dict[str, Union[Dict, Tuple, th.Tensor]]]]:
     """
     Load model data from a .zip archive
 
@@ -384,8 +389,8 @@ def load_from_zip_file(
     :param verbose: Verbosity level: 0 for no output, 1 for info messages, 2 for debug messages
     :param print_system_info: Whether to print or not the system info
         about the saved model.
-    :return: Class parameters, model state_dicts (aka "params", dict of state_dict)
-        and dict of pytorch variables
+    :return: Class parameters, model state_dicts (aka "params", dict of state_dict),
+        dict of pytorch variables and dict of internal RNG states
     """
     load_path = open_path(load_path, "r", verbose=verbose, suffix="zip")
 
@@ -402,6 +407,7 @@ def load_from_zip_file(
             data = None
             pytorch_variables = None
             params = {}
+            rng_states = None
 
             # Debug system info first
             if print_system_info:
@@ -443,7 +449,13 @@ def load_from_zip_file(
                         # State dicts. Store into params dictionary
                         # with same name as in .zip file (without .pth)
                         params[os.path.splitext(file_path)[0]] = th_object
+
+            # load states of pseudorandom number generators
+            if "rng_states.pkl" in namelist:
+                with archive.open("rng_states.pkl", mode="r") as rng_states_file:
+                    rng_states = pickle.load(rng_states_file)
+
     except zipfile.BadZipFile as e:
         # load_path wasn't a zip file
         raise ValueError(f"Error: the file {load_path} wasn't a zip-file") from e
-    return data, params, pytorch_variables
+    return data, params, pytorch_variables, rng_states
