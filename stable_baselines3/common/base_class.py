@@ -809,6 +809,9 @@ class BaseAlgorithm(ABC):
 
         # set internal pseudorandom number generator states
         if rng_states is not None:
+            # model._setup_model() sets seeds
+            # -> reset if rng_states are given
+            model.env._reset_seeds()
             model.set_rng_states(rng_states)
 
         return model
