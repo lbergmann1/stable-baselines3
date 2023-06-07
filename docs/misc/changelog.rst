@@ -3,7 +3,7 @@
 Changelog
 ==========
 
-Release 2.0.0a10 (WIP)
+Release 2.0.0a13 (WIP)
 --------------------------
 
 **Gymnasium support**
@@ -39,6 +39,9 @@ Bug Fixes:
 - Fixed ``VecExtractDictObs`` does not handle terminal observation (@WeberSamuel)
 - Set NumPy version to ``>=1.20`` due to use of ``numpy.typing`` (@troiganto)
 - Fixed loading DQN changes ``target_update_interval`` (@tobirohrer)
+- Fixed env checker to properly reset the env before calling ``step()`` when checking
+  for ``Inf`` and ``NaN`` (@lutogniew)
+- Fixed HER ``truncate_last_trajectory()`` (@lbergmann1)
 
 Deprecations:
 ^^^^^^^^^^^^^
@@ -61,19 +64,21 @@ Others:
 - Updated env checker to reflect what subset of Gymnasium is supported and improve GoalEnv checks
 - Improve type annotation of wrappers
 - Tests envs are now checked too
-- Added render test for ``VecEnv``
+- Added render test for ``VecEnv`` and ``VecEnvWrapper``
 - Update issue templates and env info saved with the model
 - Changed ``seed()`` method return type from ``List`` to ``Sequence``
 - Updated env checker doc and requirements for tuple spaces/goal envs
 
 Documentation:
 ^^^^^^^^^^^^^^
+- Added Deep RL Course link to the Deep RL Resources page
 - Added documentation about ``VecEnv`` API vs Gym API
 - Upgraded tutorials to Gymnasium API
 - Make it more explicit when using ``VecEnv`` vs Gym env
 - Added UAV_Navigation_DRL_AirSim to the project page (@heleidsn)
 - Added ``EvalCallback`` example (@sidney-tio)
 - Update custom env documentation
+- Added `pink-noise-rl` to projects page
 
 
 Release 1.8.0 (2023-04-07)
@@ -1346,3 +1351,4 @@ And all the contributors:
 @Melanol @qgallouedec @francescoluciano @jlp-ue @burakdmb @timothe-chaumont @honglu2875
 @anand-bala @hughperkins @sidney-tio @AlexPasqua @dominicgkerr @Akhilez @Rocamonde @tobirohrer @ZikangXiong
 @DavyMorgan @luizapozzobon @Bonifatius94 @theSquaredError @harveybellini @DavyMorgan @FieteO @jonasreiher @npit @WeberSamuel @troiganto
+@lutogniew @lbergmann1
