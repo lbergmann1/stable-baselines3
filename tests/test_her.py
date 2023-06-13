@@ -468,3 +468,83 @@ def test_performance_her(n_bits):
 
     # 90% training success
     assert np.mean(model.ep_success_buffer) > 0.90
+
+
+@pytest.mark.parametrize("n_envs", [1, 2])
+@pytest.mark.parametrize("copy_info_dict", [True, False])
+@pytest.mark.parametrize("contains_desired_goal", [True, False])
+def test_sample_goals_copy_info_dict(n_envs, copy_info_dict, contains_desired_goal):
+    """
+    Test if '_sample_goals' together with copy_info_dict works correctly
+    """
+    # remove gym warnings
+    warnings.filterwarnings(action="ignore", category=DeprecationWarning)
+    warnings.filterwarnings(action="ignore", category=UserWarning, module="gym")
+
+    n_bits = 4
+    n_steps = 100
+
+    def env_fn():
+        return BitFlippingEnv(n_bits=n_bits, continuous=True)
+
+    venv = make_vec_env(env_fn, n_envs)
+
+    replay_buffer = HerReplayBuffer(
+        buffer_size=int(1e4),
+        observation_space=venv.observation_space,
+        action_space=venv.action_space,
+        env=venv,
+        n_envs=n_envs,
+        n_sampled_goal=2,
+        goal_selection_strategy="future",
+        copy_info_dict=copy_info_dict,
+    )
+
+    observations = venv.reset()
+    for _ in range(n_steps):
+        actions = np.random.rand(n_envs, n_bits)
+        next_observations, rewards, dones, infos = venv.step(actions)
+        replay_buffer.add(observations, next_observations, actions, rewards, dones, infos)
+        observations = next_observations
+
+    # info dictionaries should not contain "achieved_goal" and "desired_goal"
+    for idx_transition in range(n_steps):
+        for env_idx in range(0, n_envs):
+            assert "achieved_goal" not in replay_buffer.infos[idx_transition, env_idx].keys()
+            assert "desired_goal" not in replay_buffer.infos[idx_transition, env_idx].keys()
+
+    # update info dictionaries (add "achieved_goal" and "desired_goal")
+    if contains_desired_goal:
+        for idx_transition in range(n_steps):
+            for env_idx in range(0, n_envs):
+                replay_buffer.infos[idx_transition, env_idx].update(
+                    {"achieved_goal": np.random.rand(2), "desired_goal": np.random.rand(2)}
+                )
+                assert "achieved_goal" in replay_buffer.infos[idx_transition, env_idx].keys()
+                assert "desired_goal" in replay_buffer.infos[idx_transition, env_idx].keys()
+
+    is_valid = replay_buffer.ep_length > 0
+    valid_indices = np.flatnonzero(is_valid)
+    batch_indices, env_indices = np.unravel_index(valid_indices, is_valid.shape)
+
+    if copy_info_dict:
+        batch_infos = deepcopy(replay_buffer.infos[batch_indices, env_indices])
+    else:
+        batch_infos = [{} for _ in range(len(batch_indices))]
+
+    old_batch_infos = deepcopy(batch_infos)
+
+    _, new_goals_info_dicts = replay_buffer._sample_goals(batch_indices, env_indices, batch_infos)
+    if (copy_info_dict and not contains_desired_goal) or not copy_info_dict:
+        # info dictionaries must remain unchanged
+        for key in old_batch_infos[0].keys():
+            for i in range(batch_indices.size):
+                assert np.allclose(old_batch_infos[i][key], new_goals_info_dicts[i][key])
+    else:
+        # info["desired_goal"] should be different, but all other values must remain unchanged
+        for key in old_batch_infos[0].keys():
+            for i in range(batch_indices.size):
+                if key != "desired_goal":
+                    assert np.allclose(old_batch_infos[i][key], new_goals_info_dicts[i][key])
+                else:
+                    assert not np.allclose(old_batch_infos[i][key], new_goals_info_dicts[i][key])
