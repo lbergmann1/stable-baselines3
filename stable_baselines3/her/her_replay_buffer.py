@@ -1,6 +1,6 @@
 import copy
 import warnings
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch as th
@@ -41,8 +41,9 @@ class HerReplayBuffer(DictReplayBuffer):
         One of ['episode', 'final', 'future']
     :param copy_info_dict: Whether to copy the info dictionary and pass it to
         ``compute_reward()`` method.
-        Please note that the copy may cause a slowdown.
-        False by default.
+        Please note that the copy may cause a slowdown. If "achieved_goal" and "desired_goal"
+        are keys in the info dictionary not only ``obs["desired_goal"]``, but also ``info["desired_goal"]``
+        will be relabeled. False by default.
     """
 
     def __init__(
@@ -304,7 +305,7 @@ class HerReplayBuffer(DictReplayBuffer):
         else:
             infos = [{} for _ in range(len(batch_indices))]
         # Sample and set new goals
-        new_goals = self._sample_goals(batch_indices, env_indices)
+        new_goals, infos = self._sample_goals(batch_indices, env_indices, infos)
         obs["desired_goal"] = new_goals
         # The desired goal for the next observation must be the same as the previous one
         next_obs["desired_goal"] = new_goals
@@ -345,13 +346,16 @@ class HerReplayBuffer(DictReplayBuffer):
             rewards=self.to_torch(self._normalize_reward(rewards.reshape(-1, 1), env)),
         )
 
-    def _sample_goals(self, batch_indices: np.ndarray, env_indices: np.ndarray) -> np.ndarray:
+    def _sample_goals(
+        self, batch_indices: np.ndarray, env_indices: np.ndarray, batch_infos: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Sample goals based on goal_selection_strategy.
 
         :param batch_indices: Indices of the transitions
         :param env_indices: Indices of the envrionments
-        :return: Sampled goals
+        :param batch_infos: info dictionaries of the transitions
+        :return: Sampled goals, info dictionaries
         """
         batch_ep_start = self.ep_start[batch_indices, env_indices]
         batch_ep_length = self.ep_length[batch_indices, env_indices]
@@ -374,7 +378,15 @@ class HerReplayBuffer(DictReplayBuffer):
             raise ValueError(f"Strategy {self.goal_selection_strategy} for sampling goals not supported!")
 
         transition_indices = (transition_indices_in_episode + batch_ep_start) % self.buffer_size
-        return self.next_observations["achieved_goal"][transition_indices, env_indices]
+
+        # update info dictionaries
+        info_dict_keys = self.infos[0, 0].keys()
+        if self.copy_info_dict and "achieved_goal" in info_dict_keys and "desired_goal" in info_dict_keys:
+            transition_info_dicts = self.infos[transition_indices, env_indices]
+            for i in range(0, transition_info_dicts.shape[0]):
+                batch_infos[i]["desired_goal"] = copy.deepcopy(transition_info_dicts[i]["achieved_goal"])
+
+        return self.next_observations["achieved_goal"][transition_indices, env_indices], batch_infos
 
     def truncate_last_trajectory(self) -> None:
         """
