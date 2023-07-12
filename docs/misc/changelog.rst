@@ -3,7 +3,41 @@
 Changelog
 ==========
 
-Release 2.0.0a13 (WIP)
+
+Release 2.1.0a0 (WIP)
+--------------------------
+
+Breaking Changes:
+^^^^^^^^^^^^^^^^^
+- Removed Python 3.7 support
+- SB3 now requires PyTorch >= 1.13
+
+New Features:
+^^^^^^^^^^^^^
+- Added Python 3.11 support
+
+`SB3-Contrib`_
+^^^^^^^^^^^^^^
+
+`RL Zoo`_
+^^^^^^^^^
+
+Bug Fixes:
+^^^^^^^^^^
+
+Deprecations:
+^^^^^^^^^^^^^
+
+Others:
+^^^^^^^
+- Updated GitHub issue templates
+- Fix typo in gym patch error message (@lukashass)
+
+Documentation:
+^^^^^^^^^^^^^^
+
+
+Release 2.0.0 (2023-06-22)
 --------------------------
 
 **Gymnasium support**
@@ -26,13 +60,20 @@ Breaking Changes:
 
 New Features:
 ^^^^^^^^^^^^^
-
+- Added Gymnasium support (Gym 0.21 and 0.26 are supported via the ``shimmy`` package)
 
 `SB3-Contrib`_
 ^^^^^^^^^^^^^^
+- Fixed QRDQN update interval for multi envs
+
 
 `RL Zoo`_
 ^^^^^^^^^
+- Gym 0.26+ patches to continue working with pybullet and TimeLimit wrapper
+- Renamed `CarRacing-v1` to `CarRacing-v2` in hyperparameters
+- Huggingface push to hub now accepts a `--n-timesteps` argument to adjust the length of the video
+- Fixed `record_video` steps (before it was stepping in a closed env)
+- Dropped Gym 0.21 support
 
 Bug Fixes:
 ^^^^^^^^^^
@@ -42,6 +83,7 @@ Bug Fixes:
 - Fixed env checker to properly reset the env before calling ``step()`` when checking
   for ``Inf`` and ``NaN`` (@lutogniew)
 - Fixed HER ``truncate_last_trajectory()`` (@lbergmann1)
+- Fixed HER desired and achieved goal order in reward computation (@JonathanKuelz)
 
 Deprecations:
 ^^^^^^^^^^^^^
@@ -79,6 +121,8 @@ Documentation:
 - Added ``EvalCallback`` example (@sidney-tio)
 - Update custom env documentation
 - Added `pink-noise-rl` to projects page
+- Fix custom policy example, ``ortho_init`` was ignored
+- Added SBX page
 
 
 Release 1.8.0 (2023-04-07)
@@ -1347,8 +1391,8 @@ And all the contributors:
 @eleurent @ac-93 @cove9988 @theDebugger811 @hsuehch @Demetrio92 @thomasgubler @IperGiove @ScheiklP
 @simoninithomas @armandpl @manuel-delverme @Gautam-J @gianlucadecola @buoyancy99 @caburu @xy9485
 @Gregwar @ycheng517 @quantitative-technologies @bcollazo @git-thor @TibiGG @cool-RR @MWeltevrede
-@carlosluis @arjun-kg @tlpss
+@carlosluis @arjun-kg @tlpss @JonathanKuelz
 @Melanol @qgallouedec @francescoluciano @jlp-ue @burakdmb @timothe-chaumont @honglu2875
 @anand-bala @hughperkins @sidney-tio @AlexPasqua @dominicgkerr @Akhilez @Rocamonde @tobirohrer @ZikangXiong
 @DavyMorgan @luizapozzobon @Bonifatius94 @theSquaredError @harveybellini @DavyMorgan @FieteO @jonasreiher @npit @WeberSamuel @troiganto
-@lutogniew @lbergmann1
+@lutogniew @lbergmann1 @lukashass
