@@ -44,6 +44,9 @@ class HerReplayBuffer(DictReplayBuffer):
         Please note that the copy may cause a slowdown. If "achieved_goal" and "desired_goal"
         are keys in the info dictionary not only ``obs["desired_goal"]``, but also ``info["desired_goal"]``
         will be relabeled. False by default.
+    :param obs_contains_ep_history: Whether ``obs["observation"]`` and ``obs["achieved_goal"]`` contain the 
+        full history of an episode. If True ``obs["desired_goal"]`` is replaced by ``next_obs["achieved_goal"][:elapsed_ep_steps,:]``.
+        False by default.
     """
 
     def __init__(
@@ -59,6 +62,7 @@ class HerReplayBuffer(DictReplayBuffer):
         n_sampled_goal: int = 4,
         goal_selection_strategy: Union[GoalSelectionStrategy, str] = "future",
         copy_info_dict: bool = False,
+        obs_contains_ep_history: bool = False
     ):
         super().__init__(
             buffer_size,
@@ -71,6 +75,7 @@ class HerReplayBuffer(DictReplayBuffer):
         )
         self.env = env
         self.copy_info_dict = copy_info_dict
+        self.obs_contains_ep_history = obs_contains_ep_history
 
         # convert goal_selection_strategy into GoalSelectionStrategy if string
         if isinstance(goal_selection_strategy, str):
@@ -306,9 +311,19 @@ class HerReplayBuffer(DictReplayBuffer):
             infos = [{} for _ in range(len(batch_indices))]
         # Sample and set new goals
         new_goals, infos = self._sample_goals(batch_indices, env_indices, infos)
-        obs["desired_goal"] = new_goals
-        # The desired goal for the next observation must be the same as the previous one
-        next_obs["desired_goal"] = new_goals
+        if self.obs_contains_ep_history:
+            seq_lengths = np.sum(np.sum(new_goals, axis=-1) != 0, axis=1)
+            seq_lengths_u = np.unique(seq_lengths)
+
+            for sl in seq_lengths_u:
+                mask_sl = seq_lengths == sl
+                obs["desired_goal"][mask_sl,:] = new_goals[mask_sl, sl-1, :]
+                # The desired goal for the next observation must be the same as the previous one
+                next_obs["desired_goal"][mask_sl,:] = new_goals[mask_sl, sl-1, :]
+        else:
+            obs["desired_goal"] = new_goals
+            # The desired goal for the next observation must be the same as the previous one
+            next_obs["desired_goal"] = new_goals
 
         # Compute new reward
         rewards = self.env.env_method(
