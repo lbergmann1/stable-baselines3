@@ -390,12 +390,21 @@ class EvalCallback(EventCallback):
         if log_path is not None:
             log_path = os.path.join(log_path, "evaluations")
         self.log_path = log_path
-        self.evaluations_results = []
-        self.evaluations_timesteps = []
-        self.evaluations_length = []
-        # For computing success rate
+        if os.path.isfile(self.log_path + ".npz"):
+            data = np.load(self.log_path + ".npz")
+
+            self.evaluations_timesteps = list(data["timesteps"])
+            self.evaluations_results = list(data["results"])
+            self.evaluations_length = list(data["ep_lengths"])
+            if "successes" in data.keys():
+                self.evaluations_successes = list(data["successes"])
+        else:
+            self.evaluations_results = []
+            self.evaluations_timesteps = []
+            self.evaluations_length = []
+            # For computing success rate
+            self.evaluations_successes = []
         self._is_success_buffer = []
-        self.evaluations_successes = []
 
     def _init_callback(self) -> None:
         # Does not work in some corner cases, where the wrapper is not the same
