@@ -47,6 +47,7 @@ class HerReplayBuffer(DictReplayBuffer):
     :param obs_contains_ep_history: Whether ``obs["observation"]`` and ``obs["achieved_goal"]`` contain the 
         full history of an episode. If True ``obs["desired_goal"]`` is replaced by ``next_obs["achieved_goal"][:elapsed_ep_steps,:]``.
         False by default.
+    :param num_obs_stacked: number of stacked observations/achieved_goals; None if observations are not stacked
     """
 
     def __init__(
@@ -62,7 +63,8 @@ class HerReplayBuffer(DictReplayBuffer):
         n_sampled_goal: int = 4,
         goal_selection_strategy: Union[GoalSelectionStrategy, str] = "future",
         copy_info_dict: bool = False,
-        obs_contains_ep_history: bool = False
+        obs_contains_ep_history: bool = False,
+        num_obs_stacked: Union[None, int] = None
     ):
         super().__init__(
             buffer_size,
@@ -76,6 +78,9 @@ class HerReplayBuffer(DictReplayBuffer):
         self.env = env
         self.copy_info_dict = copy_info_dict
         self.obs_contains_ep_history = obs_contains_ep_history
+        self.num_obs_stacked = num_obs_stacked
+        if self.num_obs_stacked is not None and self.obs_contains_ep_history:
+            raise ValueError("obs_contains_ep_history = True and num_obs_stacked != None. Please choose one observation history type.")
 
         # convert goal_selection_strategy into GoalSelectionStrategy if string
         if isinstance(goal_selection_strategy, str):
@@ -320,6 +325,11 @@ class HerReplayBuffer(DictReplayBuffer):
                 obs["desired_goal"][mask_sl,:] = new_goals[mask_sl, sl-1, :]
                 # The desired goal for the next observation must be the same as the previous one
                 next_obs["desired_goal"][mask_sl,:] = new_goals[mask_sl, sl-1, :]
+        elif self.num_obs_stacked is not None:
+            single_ag_length = int(self.observation_space["achieved_goal"].shape[0]/self.num_obs_stacked)
+            obs["desired_goal"] = new_goals[:,-single_ag_length:]
+            # The desired goal for the next observation must be the same as the previous one
+            obs["desired_goal"] = new_goals[:,-single_ag_length:]
         else:
             obs["desired_goal"] = new_goals
             # The desired goal for the next observation must be the same as the previous one
