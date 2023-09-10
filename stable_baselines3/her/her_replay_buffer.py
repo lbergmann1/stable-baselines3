@@ -329,7 +329,7 @@ class HerReplayBuffer(DictReplayBuffer):
             single_ag_length = int(self.observation_space["achieved_goal"].shape[0]/self.num_obs_stacked)
             obs["desired_goal"] = new_goals[:,-single_ag_length:]
             # The desired goal for the next observation must be the same as the previous one
-            obs["desired_goal"] = new_goals[:,-single_ag_length:]
+            next_obs["desired_goal"] = new_goals[:,-single_ag_length:]
         else:
             obs["desired_goal"] = new_goals
             # The desired goal for the next observation must be the same as the previous one
