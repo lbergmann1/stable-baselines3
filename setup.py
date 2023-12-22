@@ -76,9 +76,7 @@ model = PPO("MlpPolicy", "CartPole-v1").learn(10_000)
 extra_no_roms = [
     # For render
     "opencv-python",
-    'pygame; python_version >= "3.8.0"',
-    # See https://github.com/pygame/pygame/issues/3572
-    'pygame>=2.0,<2.1.3; python_version < "3.8.0"',
+    "pygame",
     # Tensorboard support
     "tensorboard>=2.9.1",
     # Checking memory taken by replay buffer
@@ -87,13 +85,13 @@ extra_no_roms = [
     "tqdm",
     "rich",
     # For atari games,
-    "shimmy[atari]~=0.2.1",
+    "shimmy[atari]~=1.3.0",
     "pillow",
 ]
 
 extra_packages = extra_no_roms + [  # noqa: RUF005
     # For atari roms,
-    "autorom[accept-rom-license]~=0.6.0",
+    "autorom[accept-rom-license]~=0.6.1",
 ]
 
 
@@ -102,10 +100,9 @@ setup(
     packages=[package for package in find_packages() if package.startswith("stable_baselines3")],
     package_data={"stable_baselines3": ["py.typed", "version.txt"]},
     install_requires=[
-        "gymnasium==0.28.1",
+        "gymnasium>=0.28.1,<0.30",
         "numpy>=1.20",
-        "torch>=1.11",
-        'typing_extensions>=4.0,<5; python_version < "3.8.0"',
+        "torch>=1.13",
         # For saving models
         "cloudpickle",
         # For reading logs
@@ -121,23 +118,18 @@ setup(
             "pytest-env",
             "pytest-xdist",
             # Type check
-            "pytype",
             "mypy",
-            # Lint code (flake8 replacement)
-            "ruff",
-            # Sort imports
-            "isort>=5.0",
+            # Lint code and sort imports (flake8 and isort replacement)
+            "ruff>=0.0.288",
             # Reformat
-            "black",
+            "black>=23.9.1,<24",
         ],
         "docs": [
-            "sphinx",
+            "sphinx>=5,<8",
             "sphinx-autobuild",
-            "sphinx-rtd-theme",
+            "sphinx-rtd-theme>=1.3.0",
             # For spelling
             "sphinxcontrib.spelling",
-            # Type hints support
-            "sphinx-autodoc-typehints",
             # Copy button for code snippets
             "sphinx_copybutton",
         ],
@@ -154,20 +146,22 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     version=__version__,
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     # PyPI package information.
     project_urls={
         "Code": "https://github.com/DLR-RM/stable-baselines3",
         "Documentation": "https://stable-baselines3.readthedocs.io/",
+        "Changelog": "https://stable-baselines3.readthedocs.io/en/master/misc/changelog.html",
         "SB3-Contrib": "https://github.com/Stable-Baselines-Team/stable-baselines3-contrib",
         "RL-Zoo": "https://github.com/DLR-RM/rl-baselines3-zoo",
+        "SBX": "https://github.com/araffin/sbx",
     },
     classifiers=[
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
     ],
 )
 

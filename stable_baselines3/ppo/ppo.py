@@ -1,11 +1,12 @@
 import warnings
-from typing import Any, Dict, Optional, Type, TypeVar, Union
+from typing import Any, ClassVar, Dict, Optional, Type, TypeVar, Union
 
 import numpy as np
 import torch as th
 from gymnasium import spaces
 from torch.nn import functional as F
 
+from stable_baselines3.common.buffers import RolloutBuffer
 from stable_baselines3.common.on_policy_algorithm import OnPolicyAlgorithm
 from stable_baselines3.common.policies import ActorCriticCnnPolicy, ActorCriticPolicy, BasePolicy, MultiInputActorCriticPolicy
 from stable_baselines3.common.type_aliases import GymEnv, MaybeCallback, Schedule
@@ -52,6 +53,8 @@ class PPO(OnPolicyAlgorithm):
         instead of action noise exploration (default: False)
     :param sde_sample_freq: Sample a new noise matrix every n steps when using gSDE
         Default: -1 (only sample at the beginning of the rollout)
+    :param rollout_buffer_class: Rollout buffer class to use. If ``None``, it will be automatically selected.
+    :param rollout_buffer_kwargs: Keyword arguments to pass to the rollout buffer on creation
     :param target_kl: Limit the KL divergence between updates,
         because the clipping is not enough to prevent large update
         see issue #213 (cf https://github.com/hill-a/stable-baselines/issues/213)
@@ -68,7 +71,7 @@ class PPO(OnPolicyAlgorithm):
     :param _init_setup_model: Whether or not to build the network at the creation of the instance
     """
 
-    policy_aliases: Dict[str, Type[BasePolicy]] = {
+    policy_aliases: ClassVar[Dict[str, Type[BasePolicy]]] = {
         "MlpPolicy": ActorCriticPolicy,
         "CnnPolicy": ActorCriticCnnPolicy,
         "MultiInputPolicy": MultiInputActorCriticPolicy,
@@ -92,6 +95,8 @@ class PPO(OnPolicyAlgorithm):
         max_grad_norm: float = 0.5,
         use_sde: bool = False,
         sde_sample_freq: int = -1,
+        rollout_buffer_class: Optional[Type[RolloutBuffer]] = None,
+        rollout_buffer_kwargs: Optional[Dict[str, Any]] = None,
         target_kl: Optional[float] = None,
         stats_window_size: int = 100,
         tensorboard_log: Optional[str] = None,
@@ -113,6 +118,8 @@ class PPO(OnPolicyAlgorithm):
             max_grad_norm=max_grad_norm,
             use_sde=use_sde,
             sde_sample_freq=sde_sample_freq,
+            rollout_buffer_class=rollout_buffer_class,
+            rollout_buffer_kwargs=rollout_buffer_kwargs,
             stats_window_size=stats_window_size,
             tensorboard_log=tensorboard_log,
             policy_kwargs=policy_kwargs,

@@ -215,7 +215,7 @@ downsampling and "vector" with a single linear layer.
   from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 
   class CustomCombinedExtractor(BaseFeaturesExtractor):
-      def __init__(self, observation_space: spaces.Dict):
+      def __init__(self, observation_space: gym.spaces.Dict):
           # We do not know features-dim here before going over all the items,
           # so put something dummy for now. PyTorch requires calling
           # nn.Module.__init__ before adding modules
@@ -262,7 +262,7 @@ Custom Networks
 If you need a network architecture that is different for the actor and the critic when using ``PPO``, ``A2C`` or ``TRPO``,
 you can pass a dictionary of the following structure: ``dict(pi=[<actor network architecture>], vf=[<critic network architecture>])``.
 
-For example, if you want a different architecture for the actor (aka ``pi``) and the critic ( value-function aka ``vf``) networks,
+For example, if you want a different architecture for the actor (aka ``pi``) and the critic (value-function aka ``vf``) networks,
 then you can specify ``net_arch=dict(pi=[32, 32], vf=[64, 64])``.
 
 Otherwise, to have actor and critic that share the same network architecture,
@@ -371,7 +371,8 @@ If your task requires even more granular control over the policy/value architect
           *args,
           **kwargs,
       ):
-
+          # Disable orthogonal initialization
+          kwargs["ortho_init"] = False
           super().__init__(
               observation_space,
               action_space,
@@ -380,8 +381,7 @@ If your task requires even more granular control over the policy/value architect
               *args,
               **kwargs,
           )
-          # Disable orthogonal initialization
-          self.ortho_init = False
+
 
       def _build_mlp_extractor(self) -> None:
           self.mlp_extractor = CustomNetwork(self.features_dim)

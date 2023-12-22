@@ -6,7 +6,7 @@ import time
 import warnings
 from abc import ABC, abstractmethod
 from collections import deque
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, ClassVar, Dict, Iterable, List, Optional, Tuple, Type, TypeVar, Union
 
 import gymnasium as gym
 import numpy as np
@@ -94,7 +94,7 @@ class BaseAlgorithm(ABC):
     """
 
     # Policy aliases (see _get_policy_from_name())
-    policy_aliases: Dict[str, Type[BasePolicy]] = {}
+    policy_aliases: ClassVar[Dict[str, Type[BasePolicy]]] = {}
     policy: BasePolicy
     observation_space: spaces.Space
     action_space: spaces.Space
@@ -420,9 +420,7 @@ class BaseAlgorithm(ABC):
         # Avoid resetting the environment when calling ``.learn()`` consecutive times
         if reset_num_timesteps or self._last_obs is None:
             assert self.env is not None
-            # pytype: disable=annotation-type-mismatch
             self._last_obs = self.env.reset()  # type: ignore[assignment]
-            # pytype: enable=annotation-type-mismatch
             self._last_episode_starts = np.ones((self.env.num_envs,), dtype=bool)
             # Retrieve unnormalized observation for saving into the buffer
             if self._vec_normalize_env is not None:
@@ -707,7 +705,7 @@ class BaseAlgorithm(ABC):
 
         # Gym -> Gymnasium space conversion
         for key in {"observation_space", "action_space"}:
-            data[key] = _convert_space(data[key])  # pytype: disable=unsupported-operands
+            data[key] = _convert_space(data[key])
 
         if env is not None:
             # Wrap first if needed
@@ -726,14 +724,12 @@ class BaseAlgorithm(ABC):
             if "env" in data:
                 env = data["env"]
 
-        # pytype: disable=not-instantiable,wrong-keyword-args
         model = cls(
             policy=data["policy_class"],
             env=env,
             device=device,
             _init_setup_model=False,  # type: ignore[call-arg]
         )
-        # pytype: enable=not-instantiable,wrong-keyword-args
 
         # load parameters
         model.__dict__.update(data)
@@ -776,7 +772,7 @@ class BaseAlgorithm(ABC):
         # Sample gSDE exploration matrix, so it uses the right device
         # see issue #44
         if model.use_sde:
-            model.policy.reset_noise()  # type: ignore[operator]  # pytype: disable=attribute-error
+            model.policy.reset_noise()  # type: ignore[operator]
         return model
 
     def get_parameters(self) -> Dict[str, Dict]:

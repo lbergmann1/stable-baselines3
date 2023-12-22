@@ -80,7 +80,7 @@ def _check_unsupported_spaces(env: gym.Env, observation_space: spaces.Space, act
 
     if isinstance(observation_space, spaces.Tuple):
         warnings.warn(
-            "The observation space is a Tuple,"
+            "The observation space is a Tuple, "
             "this is currently not supported by Stable Baselines3. "
             "However, you can convert it to a Dict observation space "
             "(cf. https://gymnasium.farama.org/api/spaces/composite/#dict). "
@@ -91,6 +91,13 @@ def _check_unsupported_spaces(env: gym.Env, observation_space: spaces.Space, act
         warnings.warn(
             "Discrete observation space with a non-zero start is not supported by Stable-Baselines3. "
             "You can use a wrapper or update your observation space."
+        )
+
+    if isinstance(observation_space, spaces.Sequence):
+        warnings.warn(
+            "Sequence observation space is not supported by Stable-Baselines3. "
+            "You can pad your observation to have a fixed size instead.\n"
+            "Note: The checks for returned values are skipped."
         )
 
     if isinstance(action_space, spaces.Discrete) and action_space.start != 0:
@@ -128,10 +135,10 @@ def _check_goal_env_obs(obs: dict, observation_space: spaces.Dict, method_name: 
     """
     Check that an environment implementing the `compute_rewards()` method
     (previously known as GoalEnv in gym) contains at least three elements,
-    namely `observation`, `desired_goal`, and `achieved_goal`.
+    namely `observation`, `achieved_goal`, and `desired_goal`.
     """
     assert len(observation_space.spaces) >= 3, (
-        "A goal conditioned env must contain at least 3 observation keys: `observation`, `desired_goal`, and `achieved_goal`. "
+        "A goal conditioned env must contain at least 3 observation keys: `observation`, `achieved_goal`, and `desired_goal`. "
         f"The current observation contains {len(observation_space.spaces)} keys: {list(observation_space.spaces.keys())}"
     )
 
@@ -203,18 +210,24 @@ def _check_obs(obs: Union[tuple, dict, np.ndarray, int], observation_space: spac
             f"Expected: {observation_space.dtype}, actual dtype: {obs.dtype}"
         )
         if isinstance(observation_space, spaces.Box):
-            assert np.all(obs >= observation_space.low), (
-                f"The observation returned by the `{method_name}()` method does not match the lower bound "
-                f"of the given observation space {observation_space}."
-                f"Expected: obs >= {np.min(observation_space.low)}, "
-                f"actual min value: {np.min(obs)} at index {np.argmin(obs)}"
-            )
-            assert np.all(obs <= observation_space.high), (
-                f"The observation returned by the `{method_name}()` method does not match the upper bound "
-                f"of the given observation space {observation_space}. "
-                f"Expected: obs <= {np.max(observation_space.high)}, "
-                f"actual max value: {np.max(obs)} at index {np.argmax(obs)}"
-            )
+            lower_bounds, upper_bounds = observation_space.low, observation_space.high
+            # Expose all invalid indices at once
+            invalid_indices = np.where(np.logical_or(obs < lower_bounds, obs > upper_bounds))
+            if (obs > upper_bounds).any() or (obs < lower_bounds).any():
+                message = (
+                    f"The observation returned by the `{method_name}()` method does not match the bounds "
+                    f"of the given observation space {observation_space}. \n"
+                )
+                message += f"{len(invalid_indices[0])} invalid indices: \n"
+
+                for index in zip(*invalid_indices):
+                    index_str = ",".join(map(str, index))
+                    message += (
+                        f"Expected: {lower_bounds[index]} <= obs[{index_str}] <= {upper_bounds[index]}, "
+                        f"actual value: {obs[index]} \n"
+                    )
+
+                raise AssertionError(message)
 
     assert observation_space.contains(obs), (
         f"The observation returned by the `{method_name}()` method "
@@ -341,9 +354,15 @@ def _check_spaces(env: gym.Env) -> None:
     assert isinstance(env.action_space, spaces.Space), f"The action space must inherit from gymnasium.spaces ({gym_spaces})"
 
     if _is_goal_env(env):
-        assert isinstance(
-            env.observation_space, spaces.Dict
-        ), "Goal conditioned envs (previously gym.GoalEnv) require the observation space to be gymnasium.spaces.Dict"
+        print(
+            "We detected your env to be a GoalEnv because `env.compute_reward()` was defined.\n"
+            "If it's not the case, please rename `env.compute_reward()` to something else to avoid False positives."
+        )
+        assert isinstance(env.observation_space, spaces.Dict), (
+            "Goal conditioned envs (previously gym.GoalEnv) require the observation space to be gymnasium.spaces.Dict.\n"
+            "Note: if your env is not a GoalEnv, please rename `env.compute_reward()` "
+            "to something else to avoid False positive."
+        )
 
 
 # Check render cannot be covered by CI
@@ -433,6 +452,10 @@ def check_env(env: gym.Env, warn: bool = True, skip_render_check: bool = True) -
             warnings.warn(
                 f"Your action space has dtype {action_space.dtype}, we recommend using np.float32 to avoid cast errors."
             )
+
+    # If Sequence observation space, do not check the observation any further
+    if isinstance(observation_space, spaces.Sequence):
+        return
 
     # ============ Check the returned values ===============
     _check_returned_values(env, observation_space, action_space)
